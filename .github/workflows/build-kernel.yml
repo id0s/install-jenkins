@@ -1,0 +1,36 @@
+name: Build Kernel MSM8916
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout kernel repo
+      uses: actions/checkout@v3
+      with:
+        repository: msm8916-mainline/linux
+        ref: msm8916/6.12.1
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential bc bison flex libssl-dev \
+          gcc-aarch64-linux-gnu libncurses-dev cpio
+
+    - name: Build kernel
+      run: |
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- msm8916_defconfig
+        make -j2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- Image dtbs
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-output
+        path: |
+          arch/arm64/boot/Image
+          arch/arm64/boot/dts/qcom/*.dtb
+          

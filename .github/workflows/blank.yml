@@ -1,61 +1,63 @@
-name: Build OpenWrt for Redmi 2 (MSM8916)
+name: Build OpenWrt MSM8916 Boot Pack
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3-distutils rsync unzip zlib1g-dev file wget
+    - name: Install tools
+      run: |
+        sudo apt update
+        sudo apt install -y cpio gzip wget mkbootimg curl unzip
 
-      - name: Clone ImmortalWrt
-        run: |
-          git clone --depth=1 https://github.com/immortalwrt/immortalwrt.git openwrt
-          cd openwrt
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+    - name: Download OpenWrt rootfs (ext4)
+      run: |
+        mkdir -p out/rootfs
+        wget https://downloads.immortalwrt.org/releases/21.02.3/targets/x86/64/openwrt-21.02.3-x86-64-rootfs-ext4.img.gz -O rootfs.img.gz
+        gunzip rootfs.img.gz
+        mv rootfs.img out/rootfs/rootfs.img
 
-      - name: Setup dummy .config (untuk test workflow saja)
-        run: |
-          cd openwrt
-          cat > .config <<EOF
-CONFIG_TARGET_rockchip=y
-CONFIG_TARGET_rockchip_armv8=y
-CONFIG_TARGET_ROOTFS_EXT4FS=y
-CONFIG_TARGET_IMAGES_GZIP=y
-CONFIG_PACKAGE_luci=y
-CONFIG_PACKAGE_luci-ssl-nginx=y
-CONFIG_PACKAGE_kmod-usb-core=y
-CONFIG_PACKAGE_kmod-usb-net=y
-CONFIG_PACKAGE_kmod-usb-net-rndis=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
-CONFIG_PACKAGE_kmod-fs-ext4=y
-CONFIG_PACKAGE_kmod-fs-vfat=y
-CONFIG_PACKAGE_kmod-usb-storage=y
+    - name: Create simple initramfs
+      run: |
+        mkdir -p initramfs/{dev,proc,sys,mnt/root}
+        cat > initramfs/init <<'EOF'
+#!/bin/sh
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+echo "[initramfs] Mounting rootfs..."
+mount /dev/mmcblk1p1 /mnt/root
+exec switch_root /mnt/root /sbin/init
 EOF
+        chmod +x initramfs/init
+        (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
 
-          make defconfig
+    - name: Download dummy Image.gz and DTB (dummy placeholder)
+      run: |
+        mkdir -p out/kernel
+        # Dummy placeholders, kamu bisa ganti dengan file asli
+        curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/lk2nd/raw/main/images/Image.gz
+        curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/lk2nd/raw/main/images/msm8916-dummy.dtb
+        cat out/kernel/Image.gz out/kernel/msm8916.dtb > out/Image.gz-dtb
 
-      - name: Build OpenWrt
-        run: |
-          cd openwrt
-          make -j$(nproc) || make -j1 V=s
+    - name: Create boot.img
+      run: |
+        mkbootimg --kernel out/Image.gz-dtb \
+          --ramdisk out/initramfs.cpio.gz \
+          --pagesize 2048 \
+          --base 0x80000000 \
+          --cmdline 'console=ttyMSM0,115200n8 androidboot.selinux=permissive' \
+          --output out/boot.img
 
-      - name: Upload firmware
-        uses: actions/upload-artifact@v3
-        with:
-          name: openwrt-redmi2
-          path: openwrt/bin/targets/
-          
+    - name: Upload all
+      uses: actions/upload-artifact@v3
+      with:
+        name: msm8916-openwrt-pack
+        path: out/
+        

@@ -13,7 +13,8 @@ jobs:
           sudo apt update
           sudo apt install -y build-essential libncurses-dev bc git \
             cpio gzip wget mkbootimg curl libssl-dev flex bison \
-            libelf-dev u-boot-tools device-tree-compiler qemu-system-arm
+            libelf-dev u-boot-tools device-tree-compiler qemu-system-arm \
+            gcc-arm-linux-gnueabi
 
       - name: Clone msm8916 kernel (6.12.1)
         run: |
@@ -29,14 +30,14 @@ jobs:
           find arch/arm/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
           cat ../out/kernel/zImage ../out/kernel/msm8916.dtb > ../out/Image.gz-dtb
 
-      - name: Download OpenWrt rootfs (ext4 CLI)
+      - name: Download OpenWrt rootfs (CLI version)
         run: |
           mkdir -p out/rootfs
           wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
           mv rootfs.img out/rootfs/rootfs.img
 
-      - name: Create initramfs (switch_root to rootfs)
+      - name: Create initramfs (mount rootfs + shell CLI)
         run: |
           mkdir -p initramfs/{dev,proc,sys,mnt}
           cat << 'EOF' > initramfs/init

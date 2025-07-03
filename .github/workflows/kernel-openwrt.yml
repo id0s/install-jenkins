@@ -39,7 +39,7 @@ jobs:
         make ARCH=arm64 msm8916_defconfig
         make -j$(nproc) ARCH=arm64 Image.gz dtbs
         cp arch/arm64/boot/Image.gz ../Image.gz
-        find arch/arm64/boot/dts -name "*.dtb" -exec cat {} + > ../msm8916-wingtech-wt88047.dtb
+        find arch/arm64/boot/dts -name "msm8916-wingtech-wt88047.dtb.dtb" -exec cat {} + > ../msm8916-wingtech-wt88047.dtb
 
     - name: Combine Kernel and DTB
       run: |

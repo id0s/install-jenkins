@@ -1,4 +1,4 @@
-name: Build OpenWrt Boot Image (MSM8916)
+name: Build OpenWrt Boot Image for MSM8916 (ARM64)
 
 on:
   workflow_dispatch:
@@ -8,51 +8,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout this repo
+    - name: Checkout Repo
       uses: actions/checkout@v4
 
     - name: Install Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          python3-pip \
           build-essential \
-          gcc \
           bc \
-          cpio \
+          bison \
+          flex \
+          git \
           curl \
           lz4 \
+          cpio \
           mkbootimg \
+          gcc-aarch64-linux-gnu \
           libssl-dev \
           libelf-dev \
-          flex \
-          bison \
-          git
+          python3-pip \
+          wget \
+          rsync \
+          unzip \
+          device-tree-compiler
 
-    - name: Clone Linux Kernel MSM8916 Mainline
+    - name: Clone MSM8916 Kernel (msm8916/6.12.1)
       run: |
-        git clone --depth=1 https://github.com/msm8916-mainline/linux -b msm8916/6.12.1 mainline-kernel
+        git clone --depth=1 -b msm8916/6.12.1 https://github.com/msm8916-mainline/linux.git kernel-msm8916
 
     - name: Build Kernel and DTB
       run: |
-        cd mainline-kernel
-        make ARCH=arm64 msm8916_defconfig
-        make -j$(nproc) ARCH=arm64 Image.gz dtbs
+        cd kernel-msm8916
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- qcom_defconfig
+        make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- Image.gz dtbs
         cp arch/arm64/boot/Image.gz ../Image.gz
-        find arch/arm64/boot/dts -name "msm8916-wingtech-wt88047.dtb.dtb" -exec cat {} + > ../msm8916-wingtech-wt88047.dtb
+        find arch/arm64/boot/dts -name "msm8916-*.dtb" -exec cat {} + > ../msm8916.dtb
 
     - name: Combine Kernel and DTB
       run: |
-        cat zImage msm8916-wingtech-wt88047.dtb > zImage-dtb
+        cat Image.gz msm8916.dtb > Image.gz-dtb
 
-    - name: Download OpenWrt Initramfs (Rootfs)
+    - name: Download OpenWrt Rootfs (Initramfs)
       run: |
         curl -L -o rootfs.cpio.gz https://downloads.openwrt.org/releases/23.05.0/targets/ipq40xx/generic/openwrt-23.05.0-ipq40xx-generic-rootfs.cpio.gz
 
-    - name: Build boot.img with mkbootimg
+    - name: Build boot-openwrt.img
       run: |
         mkbootimg \
-          --kernel zImage-dtb \
+          --kernel Image.gz-dtb \
           --ramdisk rootfs.cpio.gz \
           --cmdline "console=tty0 console=ttyMSM0,115200 root=/dev/ram0 rootfstype=ext4 rw init=/bin/procd" \
           --base 0x80078000 \
@@ -65,7 +69,7 @@ jobs:
           --hash sha1 \
           -o boot-openwrt.img
 
-    - name: Upload Artifact
+    - name: Upload boot.img
       uses: actions/upload-artifact@v4
       with:
         name: boot-openwrt-msm8916

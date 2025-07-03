@@ -1,0 +1,73 @@
+name: Build OpenWrt Boot Image (MSM8916)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-bootimg:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout this repo
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-pip \
+          build-essential \
+          gcc \
+          bc \
+          cpio \
+          curl \
+          lz4 \
+          mkbootimg \
+          libssl-dev \
+          libelf-dev \
+          flex \
+          bison \
+          git
+
+    - name: Clone Linux Kernel MSM8916 Mainline
+      run: |
+        git clone --depth=1 https://github.com/andersson/kernel.git -b msm8916 mainline-kernel
+
+    - name: Build Kernel and DTB
+      run: |
+        cd mainline-kernel
+        make ARCH=arm msm8916_defconfig
+        make -j$(nproc) ARCH=arm zImage dtbs
+        cp arch/arm/boot/zImage ../zImage
+        find arch/arm/boot/dts -name "msm8916-*.dtb" -exec cat {} + > ../msm8916.dtb
+
+    - name: Combine Kernel and DTB
+      run: |
+        cat zImage msm8916.dtb > zImage-dtb
+
+    - name: Download OpenWrt Initramfs (Rootfs)
+      run: |
+        curl -L -o rootfs.cpio.gz https://downloads.openwrt.org/releases/23.05.0/targets/ipq40xx/generic/openwrt-23.05.0-ipq40xx-generic-rootfs.cpio.gz
+
+    - name: Build boot.img with mkbootimg
+      run: |
+        mkbootimg \
+          --kernel zImage-dtb \
+          --ramdisk rootfs.cpio.gz \
+          --cmdline "console=tty0 console=ttyMSM0,115200 root=/dev/ram0 rootfstype=ext4 rw init=/bin/procd" \
+          --base 0x80078000 \
+          --pagesize 2048 \
+          --kernel_offset 0x00008000 \
+          --ramdisk_offset 0x7ff88000 \
+          --second_offset 0x7ff88000 \
+          --tags_offset 0x01d88000 \
+          --header_version 0 \
+          --hash sha1 \
+          -o boot-openwrt.img
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot-openwrt-msm8916
+        path: boot-openwrt.img
+        

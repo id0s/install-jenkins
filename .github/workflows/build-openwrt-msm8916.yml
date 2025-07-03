@@ -1,4 +1,4 @@
-name: Build OpenWrt + Kernel MSM8916 for Redmi 2
+name: OpenWrt CLI Boot MSM8916
 
 on:
   workflow_dispatch:
@@ -13,54 +13,62 @@ jobs:
           sudo apt update
           sudo apt install -y build-essential libncurses-dev bc git \
             cpio gzip wget mkbootimg curl libssl-dev flex bison \
-            libelf-dev u-boot-tools device-tree-compiler
+            libelf-dev u-boot-tools device-tree-compiler qemu-system-arm
 
-      - name: Clone kernel MSM8916-mainline
+      - name: Clone msm8916 kernel (6.12.1)
         run: |
-          git clone --depth=1 https://github.com/msm8916-mainline/linux.git -b msm8916/6.12.1 kernel-msm8916
+          git clone -b msm8916/6.12.1 https://github.com/msm8916-mainline/linux.git kernel-msm8916
 
       - name: Build kernel zImage + dtb
         run: |
           cd kernel-msm8916
-          make ARCH=arm msm8916_defconfig.part
+          make ARCH=arm multi_v7_defconfig
           make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- zImage dtbs
           mkdir -p ../out/kernel
           cp arch/arm/boot/zImage ../out/kernel/zImage
-          cp arch/arm/boot/dts/qcom/msm8916-wingtech-wt88047.dtb ../out/kernel/msm8916.dtb
+          find arch/arm/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
           cat ../out/kernel/zImage ../out/kernel/msm8916.dtb > ../out/Image.gz-dtb
 
-      - name: Fetch OpenWrt rootfs armv7 + LuCI
+      - name: Download OpenWrt rootfs (ext4 CLI)
         run: |
           mkdir -p out/rootfs
           wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
           mv rootfs.img out/rootfs/rootfs.img
 
-      - name: Create initramfs
+      - name: Create initramfs (switch_root to rootfs)
         run: |
-          mkdir -p initramfs/{dev,proc,sys,mnt/root}
-          echo '#!/bin/sh' > initramfs/init
-          echo 'mount -t devtmpfs devtmpfs /dev' >> initramfs/init
-          echo 'mount -t proc proc /proc' >> initramfs/init
-          echo 'mount -t sysfs sysfs /sys' >> initramfs/init
-          echo 'echo "[initramfs] Mounting OpenWrt rootfs..."' >> initramfs/init
-          echo 'mount /dev/mmcblk1p1 /mnt/root' >> initramfs/init
-          echo 'exec switch_root /mnt/root /sbin/init' >> initramfs/init
+          mkdir -p initramfs/{dev,proc,sys,mnt}
+          cat << 'EOF' > initramfs/init
+          #!/bin/sh
+          mount -t devtmpfs devtmpfs /dev
+          mount -t proc proc /proc
+          mount -t sysfs sysfs /sys
+
+          echo "[+] Initramfs: mounting rootfs..."
+          mount /dev/mmcblk0p26 /mnt || {
+            echo "[!] Failed to mount rootfs"
+            exec sh
+          }
+
+          exec switch_root /mnt /sbin/init
+          EOF
+
           chmod +x initramfs/init
           (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
 
-      - name: Build boot.img
+      - name: Create boot.img
         run: |
           mkbootimg --kernel out/Image.gz-dtb \
             --ramdisk out/initramfs.cpio.gz \
             --pagesize 2048 \
             --base 0x80000000 \
-            --cmdline 'console=ttyMSM0,115200n8 androidboot.selinux=permissive rootfstype=ext4 root=/dev/ram0' \
+            --cmdline 'console=ttyMSM0,115200 init=/init rootfstype=ext4 root=/dev/ram0' \
             --output out/boot.img
 
-      - name: Upload boot pack
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-msm8916-redmi2-pack
+          name: openwrt-msm8916-cli-boot
           path: out/
           

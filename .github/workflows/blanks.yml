@@ -1,0 +1,71 @@
+name: Build OpenWrt MSM8916 with LuCI Boot Pack
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cpio gzip wget mkbootimg curl unzip
+
+      - name: Fetch ImmortalWrt rootfs (armv7 + LuCI)
+        run: |
+          OUT=out/rootfs
+          mkdir -p $OUT
+          wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
+          gunzip rootfs.img.gz
+          # Instal LuCI & SSH
+          guestfish <<EOF
+          add rootfs.img
+          run
+          mount /dev/sda / 
+          mkdir -p /overlay
+          # update feeds jika perlu; di chroot nanti install luci mudah
+          EOF
+          mv rootfs.img $OUT/rootfs.img
+
+      - name: Create initramfs
+        run: |
+          mkdir -p initramfs/{dev,proc,sys,mnt/root}
+          cat > initramfs/init << 'EOF'
+#!/bin/sh
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+echo "[initramfs] Mounting OpenWrt rootfs..."
+mount /dev/mmcblk1p1 /mnt/root
+exec switch_root /mnt/root /sbin/init
+EOF
+          chmod +x initramfs/init
+          (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
+
+      - name: Download SMB8916 kernel & dtb
+        run: |
+          mkdir -p out/kernel
+          curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/linux/releases/latest/download/Image.gz
+          curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/linux/releases/latest/download/msm8916.dtb
+          cat out/kernel/Image.gz out/kernel/msm8916.dtb > out/Image.gz-dtb
+
+      - name: Create boot.img
+        run: |
+          mkbootimg --kernel out/Image.gz-dtb \
+            --ramdisk out/initramfs.cpio.gz \
+            --pagesize 2048 \
+            --base 0x80000000 \
+            --cmdline 'console=ttyMSM0,115200n8 androidboot.selinux=permissive rootfstype=ext4 root=/dev/ram0' \
+            --output out/boot.img
+
+      - name: Upload boot pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: msm8916-openwrt-with-luci
+          path: out/
+          

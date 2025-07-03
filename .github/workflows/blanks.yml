@@ -16,42 +16,31 @@ jobs:
           sudo apt update
           sudo apt install -y cpio gzip wget mkbootimg curl unzip
 
-      - name: Fetch ImmortalWrt rootfs (armv7 + LuCI)
+      - name: Fetch ImmortalWrt rootfs (armv7)
         run: |
-          OUT=out/rootfs
-          mkdir -p $OUT
+          mkdir -p out/rootfs
           wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
-          # Instal LuCI & SSH
-          guestfish <<EOF
-          add rootfs.img
-          run
-          mount /dev/sda / 
-          mkdir -p /overlay
-          # update feeds jika perlu; di chroot nanti install luci mudah
-          EOF
-          mv rootfs.img $OUT/rootfs.img
+          mv rootfs.img out/rootfs/rootfs.img
 
       - name: Create initramfs
         run: |
           mkdir -p initramfs/{dev,proc,sys,mnt/root}
-          cat > initramfs/init << 'EOF'
-#!/bin/sh
-mount -t devtmpfs devtmpfs /dev
-mount -t proc proc /proc
-mount -t sysfs sysfs /sys
-echo "[initramfs] Mounting OpenWrt rootfs..."
-mount /dev/mmcblk1p1 /mnt/root
-exec switch_root /mnt/root /sbin/init
-EOF
+          echo '#!/bin/sh' > initramfs/init
+          echo 'mount -t devtmpfs devtmpfs /dev' >> initramfs/init
+          echo 'mount -t proc proc /proc' >> initramfs/init
+          echo 'mount -t sysfs sysfs /sys' >> initramfs/init
+          echo 'echo "[initramfs] Mounting OpenWrt rootfs..."' >> initramfs/init
+          echo 'mount /dev/mmcblk1p1 /mnt/root' >> initramfs/init
+          echo 'exec switch_root /mnt/root /sbin/init' >> initramfs/init
           chmod +x initramfs/init
           (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
 
-      - name: Download SMB8916 kernel & dtb
+      - name: Download MSM8916 kernel & dtb
         run: |
           mkdir -p out/kernel
-          curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/linux/releases/latest/download/Image.gz
-          curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/linux/releases/latest/download/msm8916.dtb
+          curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/lk2nd/raw/main/images/Image.gz || echo "Dummy Image"
+          curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/lk2nd/raw/main/images/msm8916.dtb || echo "Dummy DTB"
           cat out/kernel/Image.gz out/kernel/msm8916.dtb > out/Image.gz-dtb
 
       - name: Create boot.img

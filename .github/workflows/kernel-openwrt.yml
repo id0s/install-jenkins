@@ -35,8 +35,8 @@ jobs:
 
     - name: Build Kernel and DTB
       run: |
-        cd kernel-msm8916
-        make ARCH=arm64 msm8916_defconfig
+        cd mainline-kernel
+        make ARCH=arm64 defconfig
         make -j$(nproc) ARCH=arm64 Image.gz dtbs
         cp arch/arm64/boot/Image.gz ../Image.gz
         find arch/arm64/boot/dts -name "*.dtb" -exec cat {} + > ../msm8916.dtb

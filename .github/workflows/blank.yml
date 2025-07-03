@@ -8,56 +8,53 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install tools
-      run: |
-        sudo apt update
-        sudo apt install -y cpio gzip wget mkbootimg curl unzip
+      - name: Install tools
+        run: |
+          sudo apt update
+          sudo apt install -y cpio gzip wget mkbootimg curl unzip
 
-    - name: Download OpenWrt rootfs (ext4)
-      run: |
-        mkdir -p out/rootfs
-        wget https://downloads.immortalwrt.org/releases/21.02.3/targets/x86/64/openwrt-21.02.3-x86-64-rootfs-ext4.img.gz -O rootfs.img.gz
-        gunzip rootfs.img.gz
-        mv rootfs.img out/rootfs/rootfs.img
+      - name: Download OpenWrt rootfs (ext4)
+        run: |
+          mkdir -p out/rootfs
+          wget https://downloads.immortalwrt.org/releases/21.02.3/targets/x86/64/openwrt-21.02.3-x86-64-rootfs-ext4.img.gz -O rootfs.img.gz
+          gunzip rootfs.img.gz
+          mv rootfs.img out/rootfs/rootfs.img
 
-    - name: Create simple initramfs
-      run: |
-        mkdir -p initramfs/{dev,proc,sys,mnt/root}
-        cat > initramfs/init <<'EOF'
-#!/bin/sh
-mount -t devtmpfs devtmpfs /dev
-mount -t proc proc /proc
-mount -t sysfs sysfs /sys
-echo "[initramfs] Mounting rootfs..."
-mount /dev/mmcblk1p1 /mnt/root
-exec switch_root /mnt/root /sbin/init
-EOF
-        chmod +x initramfs/init
-        (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
+      - name: Create simple initramfs
+        run: |
+          mkdir -p initramfs/{dev,proc,sys,mnt/root}
+          echo '#!/bin/sh' > initramfs/init
+          echo 'mount -t devtmpfs devtmpfs /dev' >> initramfs/init
+          echo 'mount -t proc proc /proc' >> initramfs/init
+          echo 'mount -t sysfs sysfs /sys' >> initramfs/init
+          echo 'echo "[initramfs] Mounting rootfs..."' >> initramfs/init
+          echo 'mount /dev/mmcblk1p1 /mnt/root' >> initramfs/init
+          echo 'exec switch_root /mnt/root /sbin/init' >> initramfs/init
+          chmod +x initramfs/init
+          (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
 
-    - name: Download dummy Image.gz and DTB (dummy placeholder)
-      run: |
-        mkdir -p out/kernel
-        # Dummy placeholders, kamu bisa ganti dengan file asli
-        curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/lk2nd/raw/main/images/Image.gz
-        curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/lk2nd/raw/main/images/msm8916-dummy.dtb
-        cat out/kernel/Image.gz out/kernel/msm8916.dtb > out/Image.gz-dtb
+      - name: Download dummy kernel & dtb
+        run: |
+          mkdir -p out/kernel
+          curl -L -o out/kernel/Image.gz https://github.com/msm8916-mainline/lk2nd/raw/main/images/Image.gz || echo "Dummy"
+          curl -L -o out/kernel/msm8916.dtb https://github.com/msm8916-mainline/lk2nd/raw/main/images/msm8916-dummy.dtb || echo "Dummy"
+          cat out/kernel/Image.gz out/kernel/msm8916.dtb > out/Image.gz-dtb
 
-    - name: Create boot.img
-      run: |
-        mkbootimg --kernel out/Image.gz-dtb \
-          --ramdisk out/initramfs.cpio.gz \
-          --pagesize 2048 \
-          --base 0x80000000 \
-          --cmdline 'console=ttyMSM0,115200n8 androidboot.selinux=permissive' \
-          --output out/boot.img
+      - name: Create boot.img
+        run: |
+          mkbootimg --kernel out/Image.gz-dtb \
+            --ramdisk out/initramfs.cpio.gz \
+            --pagesize 2048 \
+            --base 0x80000000 \
+            --cmdline 'console=ttyMSM0,115200n8 androidboot.selinux=permissive' \
+            --output out/boot.img
 
-    - name: Upload all
-      uses: actions/upload-artifact@v3
-      with:
-        name: msm8916-openwrt-pack
-        path: out/
-        
+      - name: Upload boot pack
+        uses: actions/upload-artifact@v3
+        with:
+          name: msm8916-openwrt-pack
+          path: out/
+          

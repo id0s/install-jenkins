@@ -1,77 +1,70 @@
-name: Build OpenWrt Boot Image for MSM8916 (ARM64)
+name: Build OpenWrt for Redmi 2 (MSM8916)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
-  build-bootimg:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v3
 
-    - name: Install Dependencies
+    - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          bc \
-          bison \
-          flex \
-          git \
-          curl \
-          lz4 \
-          cpio \
-          mkbootimg \
-          gcc-aarch64-linux-gnu \
-          libssl-dev \
-          libelf-dev \
-          python3-pip \
-          wget \
-          rsync \
-          unzip \
-          device-tree-compiler
+        sudo apt update
+        sudo apt install -y build-essential clang flex bison g++ gawk \
+          gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+          python3-distutils rsync unzip zlib1g-dev file wget
 
-    - name: Clone MSM8916 Kernel (msm8916/6.12.1)
+    - name: Clone ImmortalWrt source
       run: |
-        git clone --depth=1 -b msm8916/6.12.1 https://github.com/msm8916-mainline/linux.git kernel-msm8916
+        git clone --depth=1 https://github.com/immortalwrt/immortalwrt.git openwrt
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
 
-    - name: Build Kernel and DTB
+    - name: Setup custom config for msm8916
       run: |
-        cd kernel-msm8916
-        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- msm8916_defconfig
-        make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- Image.gz dtbs
-        cp arch/arm64/boot/Image.gz ../Image.gz
-        find arch/arm64/boot/dts -name "msm8916-*.dtb" -exec cat {} + > ../msm8916.dtb
+        cd openwrt
+        # Buat config khusus target arm cortex-a7 msm8916 (Redmi 2)
+        cat > .config <<EOF
+CONFIG_TARGET_rockchip=y
+CONFIG_TARGET_rockchip_armv8=y
+# Untuk sementara pakai target generic, nanti kamu bisa custom
+CONFIG_TARGET_BOARD="msm8916"
+CONFIG_TARGET_DEVICE_msm8916_redmi2-wingtech=y
+CONFIG_TARGET_PROFILE="Redmi 2"
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-ssl-nginx=y
+CONFIG_PACKAGE_kmod-usb-core=y
+CONFIG_PACKAGE_kmod-usb-net=y
+CONFIG_PACKAGE_kmod-usb-net-rndis=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+CONFIG_PACKAGE_kmod-fs-ext4=y
+CONFIG_PACKAGE_kmod-fs-vfat=y
+CONFIG_PACKAGE_kmod-scsi-core=y
+CONFIG_PACKAGE_block-mount=y
+CONFIG_PACKAGE_kmod-usb-storage=y
+CONFIG_PACKAGE_kmod-usb-uhci=y
+CONFIG_PACKAGE_kmod-usb-ohci=y
+CONFIG_PACKAGE_kmod-usb2=y
+CONFIG_PACKAGE_kmod-usb3=y
+EOF
 
-    - name: Combine Kernel and DTB
+        make defconfig
+
+    - name: Start building OpenWrt
       run: |
-        cat Image.gz msm8916.dtb > Image.gz-dtb
+        cd openwrt
+        make -j$(nproc) || make -j1 V=s
 
-    - name: Download OpenWrt Rootfs (Initramfs)
-      run: |
-        curl -L -o rootfs.cpio.gz https://downloads.openwrt.org/releases/23.05.0/targets/ipq40xx/generic/openwrt-23.05.0-ipq40xx-generic-rootfs.cpio.gz
-
-    - name: Build boot-openwrt.img
-      run: |
-        mkbootimg \
-          --kernel Image.gz-dtb \
-          --ramdisk rootfs.cpio.gz \
-          --cmdline "console=tty0 console=ttyMSM0,115200 root=/dev/ram0 rootfstype=ext4 rw init=/bin/procd" \
-          --base 0x80078000 \
-          --pagesize 2048 \
-          --kernel_offset 0x00008000 \
-          --ramdisk_offset 0x7ff88000 \
-          --second_offset 0x7ff88000 \
-          --tags_offset 0x01d88000 \
-          --header_version 0 \
-          --hash sha1 \
-          -o boot-openwrt.img
-
-    - name: Upload boot.img
-      uses: actions/upload-artifact@v4
+    - name: Upload firmware
+      uses: actions/upload-artifact@v3
       with:
-        name: boot-openwrt-msm8916
-        path: boot-openwrt.img
+        name: openwrt-redmi2
+        path: openwrt/bin/targets/
         

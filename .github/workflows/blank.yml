@@ -19,7 +19,7 @@ jobs:
       - name: Download OpenWrt rootfs (ext4)
         run: |
           mkdir -p out/rootfs
-          wget https://downloads.immortalwrt.org/releases/21.02.3/targets/x86/64/openwrt-21.02.3-x86-64-rootfs-ext4.img.gz -O rootfs.img.gz
+          wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/64/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-64-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
           mv rootfs.img out/rootfs/rootfs.img
 

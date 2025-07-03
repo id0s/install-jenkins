@@ -22,7 +22,7 @@ jobs:
       - name: Build kernel zImage + dtb
         run: |
           cd kernel-msm8916
-          make ARCH=arm msm8916_defconfig
+          make ARCH=arm msm8916_defconfig.part
           make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- zImage dtbs
           mkdir -p ../out/kernel
           cp arch/arm/boot/zImage ../out/kernel/zImage

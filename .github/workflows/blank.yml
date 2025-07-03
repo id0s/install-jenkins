@@ -53,7 +53,7 @@ jobs:
             --output out/boot.img
 
       - name: Upload boot pack
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: msm8916-openwrt-pack
           path: out/

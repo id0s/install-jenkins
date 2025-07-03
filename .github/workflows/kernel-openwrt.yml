@@ -31,7 +31,7 @@ jobs:
 
     - name: Clone Linux Kernel MSM8916 Mainline
       run: |
-        git clone --depth=1 https://github.com/msm8916-mainline/linux -b  msm8916/6.1.21 mainline-kernel
+        git clone --depth=1 https://github.com/msm8916-mainline/linux mainline-kernel
 
     - name: Build Kernel and DTB
       run: |

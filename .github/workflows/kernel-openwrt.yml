@@ -43,7 +43,7 @@ jobs:
 
     - name: Combine Kernel and DTB
       run: |
-        cat zImage msm8916.dtb > zImage-dtb
+        cat zImage msm8916-wingtech-wt88047.dtb > zImage-dtb
 
     - name: Download OpenWrt Initramfs (Rootfs)
       run: |

@@ -45,15 +45,6 @@ jobs:
           chmod +x initramfs/init
           (cd initramfs && find . | cpio -o -H newc | gzip) > out/initramfs.cpio.gz
 
-      - name: Create boot.img
-        run: |
-          mkbootimg --kernel out/Image.gz-dtb \
-            --ramdisk out/initramfs.cpio.gz \
-            --pagesize 2048 \
-            --base 0x80000000 \
-            --cmdline 'console=ttyMSM0,115200 init=/init rootfstype=ext4 root=/dev/ram0' \
-            --output out/boot.img
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

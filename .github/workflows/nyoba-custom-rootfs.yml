@@ -12,7 +12,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y unzip wget xz-utils squashfs-tools git python3-pip \
-                              qemu-user-static binfmt-support e2fsprogs android-sdk-tools
+                              qemu-user-static binfmt-support e2fsprogs android-tools
 
       - name: Download postmarketOS image
         run: |

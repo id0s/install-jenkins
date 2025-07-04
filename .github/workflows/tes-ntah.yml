@@ -11,7 +11,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y wget xz-utils android-bootimg-tools e2fsprogs \
+        sudo apt install -y wget xz-utils e2fsprogs \
                             qemu-user-static binfmt-support unzip build-essential \
                             android-sdk-platform-tools mkbootimg 
 

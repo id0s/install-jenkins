@@ -23,9 +23,7 @@ jobs:
       - name: Configure kernel (disable IOMMU conflict)
         run: |
           cd kernel-msm8916
-          make ARCH=arm multi_v7_defconfig
-          scripts/config --disable CONFIG_ARM_DMA_USE_IOMMU
-          make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- olddefconfig
+          make ARCH=arm64 msm8916_defconfig
 
       - name: Build kernel zImage + dtb
         run: |

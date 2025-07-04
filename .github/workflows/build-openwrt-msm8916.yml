@@ -11,33 +11,39 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libncurses-dev bc git \
-            cpio gzip wget mkbootimg curl libssl-dev flex bison \
-            libelf-dev u-boot-tools device-tree-compiler qemu-system-arm \
-            gcc-arm-linux-gnueabi
+          sudo apt install -y build-essential gcc-arm-linux-gnueabi \
+            libncurses-dev bc git cpio gzip wget mkbootimg curl \
+            libssl-dev flex bison libelf-dev u-boot-tools \
+            device-tree-compiler qemu-system-arm
 
       - name: Clone msm8916 kernel (6.12.1)
         run: |
           git clone -b msm8916/6.12.1 https://github.com/msm8916-mainline/linux.git kernel-msm8916
 
-      - name: Build kernel zImage + dtb
+      - name: Configure kernel (disable IOMMU conflict)
         run: |
           cd kernel-msm8916
           make ARCH=arm multi_v7_defconfig
-          make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- zImage dtbs
+          scripts/config --disable CONFIG_ARM_DMA_USE_IOMMU
+          make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- olddefconfig
+
+      - name: Build kernel zImage + dtb
+        run: |
+          cd kernel-msm8916
+          make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- V=1 zImage dtbs
           mkdir -p ../out/kernel
           cp arch/arm/boot/zImage ../out/kernel/zImage
           find arch/arm/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
           cat ../out/kernel/zImage ../out/kernel/msm8916.dtb > ../out/Image.gz-dtb
 
-      - name: Download OpenWrt rootfs (CLI version)
+      - name: Download OpenWrt rootfs (CLI)
         run: |
           mkdir -p out/rootfs
           wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
           mv rootfs.img out/rootfs/rootfs.img
 
-      - name: Create initramfs (mount rootfs + shell CLI)
+      - name: Create initramfs (mount eMMC rootfs)
         run: |
           mkdir -p initramfs/{dev,proc,sys,mnt}
           cat << 'EOF' > initramfs/init
@@ -46,7 +52,7 @@ jobs:
           mount -t proc proc /proc
           mount -t sysfs sysfs /sys
 
-          echo "[+] Initramfs: mounting rootfs..."
+          echo "[+] Initramfs: mounting rootfs from /dev/mmcblk0p26"
           mount /dev/mmcblk0p26 /mnt || {
             echo "[!] Failed to mount rootfs"
             exec sh

@@ -8,10 +8,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install dependencies
+      - name: Install base dependencies
         run: |
           sudo apt update
-          sudo apt install -y unzip wget xz-utils squashfs-tools git python3-pip simg2img img2simg qemu-user-static binfmt-support e2fsprogs
+          sudo apt install -y unzip wget xz-utils squashfs-tools git python3-pip \
+                              qemu-user-static binfmt-support e2fsprogs build-essential
+
+      - name: Compile simg2img and img2simg tools
+        run: |
+          git clone https://github.com/anestisb/android-simg2img.git
+          cd android-simg2img
+          gcc simg2img.c -o simg2img
+          gcc img2simg.c -o img2simg
+          sudo cp simg2img img2simg /usr/local/bin/
+          cd ..
 
       - name: Download postmarketOS image
         run: |

@@ -17,11 +17,11 @@ jobs:
       - name: Compile simg2img and img2simg tools
         run: |
           git clone https://github.com/anestisb/android-simg2img.git
-          cd android-simg2img
+          cd android-simg2img/src
           gcc simg2img.c -o simg2img
           gcc img2simg.c -o img2simg
           sudo cp simg2img img2simg /usr/local/bin/
-          cd ..
+          cd ../..
 
       - name: Download postmarketOS image
         run: |

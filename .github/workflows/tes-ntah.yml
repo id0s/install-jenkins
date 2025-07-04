@@ -19,7 +19,7 @@ jobs:
       run: |
         wget https://images.postmarketos.org/bpo/v25.06/xiaomi-wt88047/sxmo-de-sway/20250621-1801/20250621-1801-postmarketOS-v25.06-sxmo-de-sway-1.17.1-xiaomi-wt88047-boot.img.xz 
         mkdir boot_extract
-        unpackbootimg -i boot.img -o boot_extract
+        abootimg -i boot.img -o boot_extract
 
     - name: Download ImmortalWRT rootfs (ext4)
       run: |

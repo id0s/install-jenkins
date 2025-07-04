@@ -11,7 +11,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y android-sdk-platform-tools wget xz-utils e2fsprogs \
+        sudo apt install -y android-tools-adb android-tools-fastboot android-sdk-platform-tools wget xz-utils e2fsprogs \
                             qemu-user-static binfmt-support unzip build-essential \
                             android-sdk-platform-tools mkbootimg 
 

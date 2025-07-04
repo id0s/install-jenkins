@@ -16,23 +16,6 @@ jobs:
             libssl-dev flex bison libelf-dev u-boot-tools \
             device-tree-compiler qemu-system-arm
 
-      - name: Clone msm8916 kernel (6.12.1)
-        run: |
-          git clone -b msm8916/6.12.1 https://github.com/msm8916-mainline/linux.git kernel-msm8916
-
-      - name: Configure kernel (disable IOMMU conflict)
-        run: |
-          cd kernel-msm8916
-          make ARCH=arm64 msm8916_defconfig
-
-      - name: Build kernel zImage + dtb
-        run: |
-          cd kernel-msm8916
-          make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- V=1 zImage dtbs
-          mkdir -p ../out/kernel
-          cp arch/arm64/boot/zImage ../out/kernel/zImage
-          find arch/arm64/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
-          cat ../out/kernel/zImage ../out/kernel/msm8916.dtb > ../out/Image.gz-dtb
 
       - name: Download OpenWrt rootfs (CLI)
         run: |

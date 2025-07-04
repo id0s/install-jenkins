@@ -1,4 +1,4 @@
-name: Build OpenWRT-based rootfs for Redmi 2
+name: Build OpenWrt-based rootfs for Redmi 2
 
 on:
   workflow_dispatch:
@@ -11,46 +11,65 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y unzip wget xz-utils squashfs-tools git python3-pip simg2img img2simg qemu-user-static binfmt-support
+          sudo apt install -y unzip wget xz-utils squashfs-tools git python3-pip simg2img img2simg qemu-user-static binfmt-support e2fsprogs
 
-      - name: Download postmarketOS full img
+      - name: Download postmarketOS image
         run: |
           wget https://images.postmarketos.org/bpo/v25.06/xiaomi-wt88047/sxmo-de-sway/20250621-1801/20250621-1801-postmarketOS-v25.06-sxmo-de-sway-1.17.1-xiaomi-wt88047.img.xz
           unxz 20250621-1801-postmarketOS-v25.06-sxmo-de-sway-1.17.1-xiaomi-wt88047.img.xz
           mv 20250621-1801-postmarketOS-v25.06-sxmo-de-sway-1.17.1-xiaomi-wt88047.img postmarketos.img
 
-      - name: Mount and extract rootfs partition
+      - name: Setup loop device and mount rootfs partition
         run: |
-          mkdir mnt
           sudo modprobe loop
-          sudo losetup -Pf postmarketos.img
-          lsblk
-          sudo mount /dev/loop0p2 mnt  # root partition
-          sudo tar -czf rootfs.tar.gz -C mnt .
+          sudo losetup -Pf --show postmarketos.img > loopdev.txt
+          LOOPDEV=$(cat loopdev.txt)
+          sudo mkdir mnt
+          sudo mount ${LOOPDEV}p2 mnt
 
-      - name: Download OpenWrt armvirt/64 rootfs
+      - name: Archive rootfs from postmarketOS image
+        run: |
+          sudo tar -czf rootfs-postmarketos.tar.gz -C mnt .
+
+      - name: Cleanup mount
+        run: |
+          sudo umount mnt
+          sudo losetup -d $(cat loopdev.txt)
+          rm loopdev.txt
+          sudo rmdir mnt
+
+      - name: Download ImmortalWRT rootfs (armvirt/64)
         run: |
           wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/64/openwrt-armvirt-64-root.ext4.gz
           gunzip openwrt-armvirt-64-root.ext4.gz
           mv openwrt-armvirt-64-root.ext4 immortal-rootfs.img
 
-      - name: Mount and modify OpenWrt rootfs
+      - name: Mount ImmortalWRT rootfs and install packages
         run: |
-          mkdir wrtfs
+          sudo mkdir wrtfs
           sudo mount -o loop immortal-rootfs.img wrtfs
+          sudo mount --bind /dev wrtfs/dev
+          sudo mount --bind /proc wrtfs/proc
+          sudo mount --bind /sys wrtfs/sys
 
-          sudo chroot wrtfs /bin/sh -c "opkg update; opkg install luci"
+          sudo chroot wrtfs /bin/sh -c "opkg update && opkg install luci"
 
+          sudo umount wrtfs/dev
+          sudo umount wrtfs/proc
+          sudo umount wrtfs/sys
           sudo umount wrtfs
-          e2fsck -fy immortal-rootfs.img
-          resize2fs -M immortal-rootfs.img
+          sudo rmdir wrtfs
 
-      - name: Convert to sparse image
+          sudo e2fsck -fy immortal-rootfs.img
+          sudo resize2fs -M immortal-rootfs.img
+
+      - name: Convert ext4 image to Android sparse image
         run: |
           img2simg immortal-rootfs.img immortal-rootfs.sparse.img
 
-      - name: Upload final rootfs image
-        uses: actions/upload-artifact@v3
+      - name: Upload final rootfs sparse image
+        uses: actions/upload-artifact@v4
         with:
           name: immortal-rootfs-redmi2
           path: immortal-rootfs.sparse.img
+          

@@ -30,14 +30,14 @@ jobs:
           cd kernel-msm8916
           make -j$(nproc) ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- V=1 zImage dtbs
           mkdir -p ../out/kernel
-          cp arch/arm/boot/zImage ../out/kernel/zImage
-          find arch/arm/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
+          cp arch/arm64/boot/zImage ../out/kernel/zImage
+          find arch/arm64/boot/dts -name "*msm8916*.dtb" -exec cat {} + > ../out/kernel/msm8916.dtb
           cat ../out/kernel/zImage ../out/kernel/msm8916.dtb > ../out/Image.gz-dtb
 
       - name: Download OpenWrt rootfs (CLI)
         run: |
           mkdir -p out/rootfs
-          wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/32/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-32-rootfs-ext4.img.gz -O rootfs.img.gz
+          wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/64/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-64-rootfs-ext4.img.gz -O rootfs.img.gz
           gunzip rootfs.img.gz
           mv rootfs.img out/rootfs/rootfs.img
 

@@ -43,7 +43,7 @@ jobs:
           # Lanjutkan packing ulang jadi boot.img
 
       - name: Upload boot.img
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: boot-img
           path: boot/boot.img

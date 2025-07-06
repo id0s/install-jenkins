@@ -1,70 +1,50 @@
-name: Build ImmortalWRT RootFS + Custom Boot.img for Redmi 2
+name: Build KernelSU for J320G
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: debian-11
-
+    runs-on: ubuntu-latest
     steps:
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y android-tools-adb android-tools-fastboot android-sdk-platform-tools wget xz-utils e2fsprogs \
-                            qemu-user-static binfmt-support unzip build-essential \
-                            android-sdk-platform-tools mkbootimg 
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v3
 
-    - name: Download postmarketOS boot.img
-      run: |
-        wget https://images.postmarketos.org/bpo/v25.06/xiaomi-wt88047/sxmo-de-sway/20250621-1801/20250621-1801-postmarketOS-v25.06-sxmo-de-sway-1.17.1-xiaomi-wt88047-boot.img.xz 
-        mkdir boot_extract
-        abootimg -x boot.img -o boot_extract
+      - name: Set up Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabi bc libncurses-dev flex bison
+          git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 --depth=1 toolchain
 
-    - name: Download ImmortalWRT rootfs (ext4)
-      run: |
-        wget https://downloads.immortalwrt.org/releases/18.06-k5.4-SNAPSHOT/targets/armvirt/64/immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-64-rootfs-ext4.img.gz
-        gunzip immortalwrt-18.06-k5.4-snapshot-r12302-b2370aa432-armvirt-64-rootfs-ext4.img.gz
-        mv immortalwrt-18.06-k5.4-snapshot-*.img immortal-rootfs.img
+      - name: Clone KernelSU
+        run: |
+          git clone --depth=1 https://github.com/tiann/KernelSU ksu
+          cp -r ksu/* ./  # atau masukkan ke lokasi sesuai struktur kernel
 
-    - name: Mount and customize rootfs
-      run: |
-        sudo mkdir wrtfs
-        sudo mount -o loop immortal-rootfs.img wrtfs
-        sudo mount --bind /dev wrtfs/dev
-        sudo mount --bind /proc wrtfs/proc
-        sudo mount --bind /sys wrtfs/sys
+      - name: Configure Kernel
+        run: |
+          export ARCH=arm
+          export CROSS_COMPILE=${{ github.workspace }}/toolchain/bin/arm-linux-androideabi-
+          make j3lte_defconfig
 
-        sudo chroot wrtfs /bin/sh -c "opkg update && opkg install luci"
+      - name: Compile Kernel
+        run: |
+          export ARCH=arm
+          export CROSS_COMPILE=${{ github.workspace }}/toolchain/bin/arm-linux-androideabi-
+          make -j$(nproc)
 
-        sudo umount wrtfs/dev
-        sudo umount wrtfs/proc
-        sudo umount wrtfs/sys
-        sudo umount wrtfs
-        sudo rmdir wrtfs
+      - name: Repack boot.img
+        run: |
+          git clone https://github.com/osm0sis/mkbootimg.git
+          # Misalnya kamu sudah punya base boot.img → extract dulu
+          # Ganti zImage hasil compile → pack ulang
+          mkdir boot
+          cp arch/arm/boot/zImage boot/
+          # Lanjutkan packing ulang jadi boot.img
 
-        sudo e2fsck -fy immortal-rootfs.img
-        sudo resize2fs -M immortal-rootfs.img
-
-    - name: Convert rootfs to sparse image
-      run: |
-        img2simg immortal-rootfs.img immortal-rootfs.sparse.img
-
-    - name: Create new boot.img with updated cmdline
-      run: |
-        mkbootimg \
-          --kernel boot_extract/boot.img-zImage \
-          --ramdisk boot_extract/boot.img-ramdisk.gz \
-          --cmdline "console=ttyMSM0,115200,n8 root=/dev/mmcblk0p2 rootwait rw init=/sbin/init" \
-          --base 0x80000000 \
-          --pagesize 2048 \
-          --output new-boot.img
-
-    - name: Upload built images
-      uses: actions/upload-artifact@v4
-      with:
-        name: redmi2-built-images
-        path: |
-          new-boot.img
-          immortal-rootfs.sparse.img
+      - name: Upload boot.img
+        uses: actions/upload-artifact@v3
+        with:
+          name: boot-img
+          path: boot/boot.img
           

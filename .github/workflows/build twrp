@@ -1,0 +1,49 @@
+name: Build TWRP for Allwinner Virgo
+
+on:
+  workflow_dispatch:  # bisa manual dari UI GitHub
+  push:
+    branches:
+      - virgo_perf1-user-8.1.0-OPM1.171019.026-20201128-115019-test-keys
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout device tree
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex \
+            g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev \
+            lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev \
+            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop openjdk-8-jdk \
+            pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            repo python-is-python3
+
+      - name: Setup repo & sync sources
+        run: |
+          mkdir -p ~/android && cd ~/android
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b android-8.1
+          repo sync -j$(nproc) --force-sync
+
+      - name: Copy device tree
+        run: |
+          cp -r $GITHUB_WORKSPACE ~/android/device/allwinner/virgo-perf1
+
+      - name: Setup build environment
+        run: |
+          cd ~/android
+          source build/envsetup.sh
+          lunch omni_virgo-perf1-eng
+          mka recoveryimage
+
+      - name: Upload recovery image
+        uses: actions/upload-artifact@v3
+        with:
+          name: twrp-recovery-virgo-perf1
+          path: ~/android/out/target/product/virgo-perf1/recovery.img
+          

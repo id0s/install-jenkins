@@ -1,10 +1,7 @@
-name: Build TWRP Recovery - Virgo Perf1 (Allwinner)
+name: Build TWRP Recovery - Virgo Perf1
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - virgo_perf1-user-8.1.0-OPM1.171019.026-20201128-115019-test-keys
 
 jobs:
   build:
@@ -25,17 +22,22 @@ jobs:
             pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
             repo python-is-python3
 
-      - name: 🌐 Initialize OmniROM Android 8.1 Source
+      - name: 🌐 Init TWRP Source (omnirom android-8.1)
         run: |
-          mkdir -p ~/android && cd ~/android
-          repo init -u https://github.com/omnirom/android.git -b android-8.1
-          repo sync -j$(nproc) --force-sync
+          mkdir -p ~/android
+          cd ~/android
+          repo init -u https://github.com/omnirom/android.git -b android-8.1 --depth=1 -q
 
-      - name: 📁 Copy Device Tree to Build Source
+      - name: 🔄 Sync TWRP Source
+        run: |
+          cd ~/android
+          repo sync -j$(nproc) --force-sync --no-clone-bundle --no-tags
+
+      - name: 📁 Copy Device Tree
         run: |
           cp -r $GITHUB_WORKSPACE ~/android/device/allwinner/virgo-perf1
 
-      - name: ⚙️ Setup & Build TWRP Recovery
+      - name: ⚙️ Build TWRP Recovery
         run: |
           cd ~/android
           source build/envsetup.sh

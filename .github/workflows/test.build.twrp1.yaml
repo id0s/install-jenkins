@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -50,7 +50,7 @@ jobs:
           make recoveryimage -j$(nproc)
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: twrp-${{ github.event.inputs.twrp_version }}-${{ github.event.inputs.device_codename }}
           path: ~/twrp/out/target/product/${{ github.event.inputs.device_codename }}/recovery.img

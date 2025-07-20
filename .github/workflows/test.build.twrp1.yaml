@@ -1,0 +1,57 @@
+name: Build TWRP for Virgo
+
+on:
+  workflow_dispatch:
+    inputs:
+      twrp_version:
+        description: 'TWRP Version (e.g. 3.3.1-0)'
+        required: true
+        default: '3.3.1-0'
+      device_codename:
+        description: 'Device Codename'
+        required: true
+        default: 'virgo'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build TWRP for ${{ github.event.inputs.device_codename }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev libncurses5 libncurses5-dev libssl-dev libxml2 libxml2-utils lzop pngcrush schedtool squashfs-tools xsltproc zip zlib1g-dev openjdk-8-jdk python2
+
+      - name: Set up repo and sync TWRP source
+        run: |
+          mkdir -p ~/twrp && cd ~/twrp
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-${{ github.event.inputs.twrp_version }}
+          repo sync -j4
+
+      - name: Clone device tree for Virgo
+        run: |
+          cd ~/twrp
+          git clone https://github.com/TeamWin/android_device_xiaomi_virgo.git -b twrp-${{ github.event.inputs.twrp_version }} device/xiaomi/virgo
+          git clone https://github.com/TheMuppets/proprietary_vendor_xiaomi.git vendor/xiaomi
+
+      - name: Set up environment
+        run: |
+          cd ~/twrp
+          source build/envsetup.sh
+          lunch omni_${{ github.event.inputs.device_codename }}-eng
+
+      - name: Build TWRP
+        run: |
+          cd ~/twrp
+          make recoveryimage -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: twrp-${{ github.event.inputs.twrp_version }}-${{ github.event.inputs.device_codename }}
+          path: ~/twrp/out/target/product/${{ github.event.inputs.device_codename }}/recovery.img
+          

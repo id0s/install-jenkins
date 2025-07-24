@@ -1,60 +1,28 @@
 name: Build ya-webadb
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: npm install
 
-      # Sesuaikan perintah build dengan repo (umumnya ya-webadb pakai recursive)
       - name: Build
-        run: pnpm -r run build
-
-      # Kumpulkan semua folder dist/* dari seluruh workspace
-      - name: List dist folders
-        id: dist_paths
-        run: |
-          DIST_DIRS=$(find . -type d -name dist | tr '\n' ' ')
-          echo "paths=$DIST_DIRS" >> "$GITHUB_OUTPUT"
-
-      - name: Fail if no build output
-        if: steps.dist_paths.outputs.paths == ''
-        run: |
-          echo "No dist directories found!"
-          exit 1
+        run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ya-webadb-dist-${{ github.sha }}
-          path: ${{ steps.dist_paths.outputs.paths }}
-          if-no-files-found: error
-          compression-level: 9
-          retention-days: 14
-          
+          name: ya-webadb-dist
+          path: dist

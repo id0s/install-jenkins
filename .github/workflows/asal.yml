@@ -26,10 +26,20 @@ jobs:
       - name: Build
         run: pnpm -r run build
 
+      - name: Find and upload dist folders
+        run: |
+          DIST_DIRS=$(find . -type d -name dist | tr '\n' ' ')
+          if [ -z "$DIST_DIRS" ]; then
+            echo "No dist directories found"
+            exit 1
+          fi
+          echo "Found dist directories: $DIST_DIRS"
+        id: dist_paths
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ya-webadb-dist
-          path: |
-            packages/dist/
-            
+          name: ya-webadb-dist-${{ github.sha }}
+          path: ${{ steps.dist_paths.outputs.paths }}
+          if-no-files-found: error
+          

@@ -31,5 +31,5 @@ jobs:
         with:
           name: ya-webadb-dist
           path: |
-            packages/**/dist
+            packages/dist/
             

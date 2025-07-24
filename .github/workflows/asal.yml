@@ -26,7 +26,7 @@ jobs:
       - name: Build
         run: pnpm -r run build
 
-            - name: Find dist folders
+      - name: Find dist folders
         id: dist_paths
         run: |
           DIST_DIRS=$(find . -type d -name dist | grep -v node_modules | tr '\n' ' ')
@@ -34,15 +34,9 @@ jobs:
             echo "No dist directories found"
             exit 1
           fi
+          echo "Found dist directories: $DIST_DIRS"
           echo "paths=$DIST_DIRS" >> $GITHUB_ENV
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ya-webadb-dist-${{ github.sha }}
-          path: ${{ env.paths }}
-          if-no-files-found: error
-          
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

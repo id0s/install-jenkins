@@ -26,20 +26,21 @@ jobs:
       - name: Build
         run: pnpm -r run build
 
-      - name: Find and upload dist folders
+      - name: Find dist folders
+        id: dist_paths
         run: |
-          DIST_DIRS=$(find . -type d -name dist | tr '\n' ' ')
+          DIST_DIRS=$(find . -type d -name dist)
           if [ -z "$DIST_DIRS" ]; then
             echo "No dist directories found"
             exit 1
           fi
           echo "Found dist directories: $DIST_DIRS"
-        id: dist_paths
+          echo "paths=$DIST_DIRS" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ya-webadb-dist-${{ github.sha }}
-          path: ${{ steps.dist_paths.outputs.paths }}
+          path: ${{ env.paths }}
           if-no-files-found: error
           

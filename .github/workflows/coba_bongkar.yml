@@ -1,0 +1,49 @@
+name: Extract PAC Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      firmware_url:
+        description: 'Link ke file firmware .pac atau .zip'
+        required: true
+        default: 'https://example.com/firmware.pac'
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git python3 unzip wget
+
+      - name: Clone PAC Extractor
+        run: |
+          git clone https://github.com/chenxiaolong/sprd_pacextract.git
+          cd sprd_pacextract
+          sudo python3 setup.py install
+
+      - name: Download firmware
+        run: |
+          wget -O firmware.zip "${{ github.event.inputs.firmware_url }}"
+          mkdir firmware && cd firmware
+          unzip ../firmware.zip || true
+
+      - name: Extract PAC
+        run: |
+          mkdir extracted
+          for f in firmware/*.pac; do
+            echo "Extracting $f ..."
+            pacextract "$f" extracted/
+          done
+
+      - name: Upload extracted firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: extracted-firmware
+          path: extracted/
+          

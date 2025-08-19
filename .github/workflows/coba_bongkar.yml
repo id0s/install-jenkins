@@ -6,7 +6,7 @@ on:
       firmware_url:
         description: 'Link ke file firmware .pac atau .zip'
         required: true
-        default: 'https://example.com/firmware.pac'
+        default: 'https://download853.mediafire.com/3e08jt62m3mg53QS5lQu1iSHXRkFpD90-4I_RRjoPMQ_mCzaPHm1CTaXMBOOXC4dBRRxfkVPGzDbpiWYX7Mo3pvpaAWdq5JUrxZLieJt16ua8BIQGd1S6Y-H4K9MnKpN5Z7-hNChSGTiY2CVf-yQqprz8HvrYxO6iWuYr-eyqKgC4w/8lpr4yb47p6aa4i/Evercoss_S45B_SC9832_15092018_8.1.0_SPD.zip'
 
 jobs:
   extract:
@@ -23,15 +23,14 @@ jobs:
 
       - name: Clone PAC Extractor
         run: |
-          git clone https://github.com/chenxiaolong/sprd_pacextract.git
-          cd sprd_pacextract
-          sudo python3 setup.py install
+          git clone https://github.com/divinebird/pacextractor
+          cd pacextractor
+          make
 
       - name: Download firmware
         run: |
           wget -O firmware.zip "${{ github.event.inputs.firmware_url }}"
-          mkdir firmware && cd firmware
-          unzip ../firmware.zip || true
+          cd firmware
 
       - name: Extract PAC
         run: |

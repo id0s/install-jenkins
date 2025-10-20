@@ -7,7 +7,7 @@ on:
       bootloader:
         description: "Select Bootloader"
         required: true
-        default: "b860h"
+        default: "hg680p"
         type: choice
         options:
           - b860h
@@ -15,7 +15,7 @@ on:
       fw_link:
         description: "Insert Firmware Link"
         required: true
-        default: ""
+        default: "https://dl.armbian.com/aml-s9xx-box/Plucky_edge_server"
 
 jobs:
   setup:
